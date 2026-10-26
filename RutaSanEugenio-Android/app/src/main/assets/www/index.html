@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Ruta San Eugenio Vertical</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&display=swap">
+<style>
+/* Layout: app de una pantalla — franja de 5 colores, cabecera negra tipo andén, vista (mapa / ruta / info), barra de pestañas. */
+:root{
+  --paper:#FFFFFF; --ink:#0A0A0A; --mute:#5C5A63; --line:#E3E2E7; --soft:#F4F4F6;
+  --talleres:#F2F238; --via:#352149; --servicios:#41D2F5; --acceso:#3EC736; --memoria:#EE3354;
+  --veil:rgba(255,255,255,.66);
+  --font:"Archivo","Helvetica Neue",Arial,system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0A0A0A; --ink:#FFFFFF; --mute:#A9A7B0; --line:#26252B; --soft:#16161A; --veil:rgba(10,10,10,.6); color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#0A0A0A; --ink:#FFFFFF; --mute:#A9A7B0; --line:#26252B; --soft:#16161A; --veil:rgba(10,10,10,.6); color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--servicios);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto 1fr auto}
+.stripe{display:grid;grid-template-columns:repeat(5,1fr);height:6px}
+.stripe i:nth-child(1){background:var(--talleres)}.stripe i:nth-child(2){background:var(--via)}
+.stripe i:nth-child(3){background:var(--servicios)}.stripe i:nth-child(4){background:var(--acceso)}.stripe i:nth-child(5){background:var(--memoria)}
+
+.top{background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top h1{margin:0;font-weight:900;font-size:19px;line-height:.95;letter-spacing:-.01em;text-transform:uppercase}
+.top h1 small{display:block;font-weight:700;font-size:10.5px;letter-spacing:.14em;color:var(--talleres);margin-top:5px}
+.logo{background:#fff;border-radius:6px;padding:5px 8px;display:flex;flex:none}
+.logo img{height:26px;width:auto;display:block}
+
+main{position:relative;min-height:0;overflow:hidden}
+.view{position:absolute;inset:0}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ---------- MAPA ---------- */
+#viewport{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#E9E7DF;cursor:grab}
+#viewport.drag{cursor:grabbing}
+#world{position:absolute;left:0;top:0;width:2576px;height:1449px;transform-origin:0 0;will-change:transform}
+#world img{width:2576px;height:1449px;max-width:none;display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.veil{position:absolute;inset:0;background:var(--veil);opacity:0;transition:opacity .25s;pointer-events:none}
+.filtering .veil{opacity:1}
+.mk{position:absolute;width:104px;height:104px;margin:-52px 0 0 -52px;border-radius:50%;background:#0A0A0A;color:var(--talleres);
+  font-weight:800;font-size:62px;line-height:104px;text-align:center;transition:opacity .25s, box-shadow .2s}
+.mk.dim{opacity:.18;pointer-events:none}
+.mk.on{box-shadow:0 0 0 12px #fff,0 0 0 26px var(--c)}
+.mk.done::after{content:"";position:absolute;right:-10px;top:-10px;width:44px;height:44px;border-radius:50%;
+  background:var(--acceso) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%230A0A0A' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/30px no-repeat;
+  border:5px solid #0A0A0A}
+
+.chips{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;z-index:3;
+  padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:flex;align-items:center;gap:7px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:var(--paper);
+  border:1.5px solid var(--ink);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.chip i{width:12px;height:12px;border-radius:3px;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+.zoom{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:62px;display:flex;flex-direction:column;z-index:3;
+  background:var(--paper);border:1.5px solid var(--ink);border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.zoom button{width:42px;height:42px;display:grid;place-items:center}
+.zoom button+button{border-top:1.5px solid var(--line)}
+.zoom svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:2.4;stroke-linecap:round}
+
+.hint{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:2;background:#0A0A0A;color:#fff;border-radius:999px;
+  padding:9px 16px;font-size:12.5px;font-weight:700;letter-spacing:.04em;white-space:nowrap;transition:opacity .3s}
+
+/* hoja de parada */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--paper);border-top:8px solid var(--c);
+  max-height:64%;display:flex;flex-direction:column;box-shadow:0 -10px 30px rgba(0,0,0,.18);
+  transform:translateY(105%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.sheet.open{transform:none}
+.sheet-head{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center;
+  padding-block:16px 12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet-head img{width:64px;height:64px;display:block}
+.eyebrow{font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.sheet h2{margin:2px 0 0;font-weight:900;font-size:26px;line-height:.95;text-transform:uppercase;letter-spacing:-.01em;text-wrap:balance}
+.x{width:40px;height:40px;border-radius:50%;background:var(--soft);display:grid;place-items:center;align-self:start}
+.x svg{width:18px;height:18px;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+.sheet-body{overflow-y:auto;min-height:0;padding-block:0 8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;font-weight:700;margin-bottom:10px}
+.meta span{display:flex;align-items:center;gap:6px}
+.meta span::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.sheet p{margin:0 0 10px;max-width:62ch}
+.sample{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);border:1px dashed var(--mute);border-radius:4px;padding:3px 6px;margin-bottom:6px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-block:10px 14px;border-top:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.btn{height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--ink)}
+.btn.solid{background:var(--ink);color:var(--paper)}
+.btn svg{width:18px;height:18px;flex:none}
+.btn[aria-pressed="true"]{background:var(--acceso);border-color:var(--acceso);color:#0A0A0A}
+.nav{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px}
+.nav button{font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:8px 2px;display:flex;align-items:center;gap:6px}
+.nav button:disabled{opacity:.3;cursor:default}
+
+/* ---------- RUTA ---------- */
+.pad{padding-block:22px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:720px;margin:0 auto}
+.label{font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:0 0 6px}
+.big{margin:0;font-weight:900;font-size:clamp(34px,10vw,52px);line-height:.92;text-transform:uppercase;letter-spacing:-.015em}
+.progress{margin:18px 0 6px;display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+.progress i{height:10px;border-radius:2px;background:var(--line)}
+.progress i.done{background:var(--c)}
+.count{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between}
+.count button{text-decoration:underline;text-underline-offset:3px;color:var(--mute);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:12px}
+.list{list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.row{width:100%;display:grid;grid-template-columns:10px 52px 1fr auto;align-items:center;gap:14px;padding:10px 16px 10px 0;
+  background:var(--paper);border:1.5px solid var(--line);border-radius:6px;text-align:left;overflow:hidden}
+.row.inv{background:#0A0A0A;color:#fff;border-color:#0A0A0A}
+.row .bar{align-self:stretch;margin:-10px 0;background:var(--c)}
+.row img{width:52px;height:52px;display:block}
+.row b{display:block;font-weight:900;font-size:18px;line-height:1;text-transform:uppercase;letter-spacing:-.005em}
+.row small{display:block;margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.65}
+.row .num{font-weight:900;font-size:28px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.row .tick{width:22px;height:22px;border-radius:50%;background:var(--acceso);display:grid;place-items:center}
+.row .tick svg{width:14px;height:14px}
+
+/* ---------- INFO ---------- */
+.card{border:1.5px solid var(--line);border-left:8px solid var(--c);border-radius:4px;padding:18px 18px 8px;margin-top:22px}
+.card h3{margin:0 0 14px;font-weight:900;font-size:22px;line-height:.95;text-transform:uppercase}
+.item{display:grid;grid-template-columns:40px 1fr;gap:12px;margin-bottom:14px;align-items:start}
+.item img{width:40px;height:40px}
+.item b{display:block;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.item span{font-size:14px;color:var(--mute)}
+ol.steps{margin:0 0 10px;padding-left:22px}
+ol.steps li{margin-bottom:8px}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.legend i{width:22px;height:22px;border-radius:5px;background:var(--c);flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.foot{margin-top:28px;padding-top:16px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.foot .logo{border:1px solid var(--line)}
+
+/* ---------- PESTAÑAS ---------- */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--paper);border-top:1.5px solid var(--ink);
+  padding-bottom:0;padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.tab{height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);position:relative}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--ink)}
+.tab[aria-selected="true"]::before{content:"";position:absolute;top:-1.5px;left:22%;right:22%;height:4px;background:var(--ink)}
+
+@media (min-width:760px){
+  .sheet{left:auto;right:16px;bottom:16px;width:400px;max-height:calc(100% - 90px);border-radius:8px;overflow:hidden}
+  .top h1{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<div class="app">
+  <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <header class="top">
+    <h1>Maestranza<br>San Eugenio<small>Ruta patrimonial</small></h1>
+    <div class="logo"><img src="img/efecultura.png" alt="EFE Cultura"></div>
+  </header>
+
+  <main>
+    <!-- MAPA -->
+    <section class="view" id="v-mapa" aria-label="Mapa">
+      <div id="viewport">
+        <div id="world">
+          <img src="img/mapa.jpg" alt="Mapa ilustrado de la Maestranza San Eugenio con las 9 paradas de la ruta" draggable="false">
+          <div class="veil"></div>
+        </div>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filtrar por tipo de recorrido"></div>
+      <div class="zoom">
+        <button id="zin" aria-label="Acercar"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="zout" aria-label="Alejar"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <button id="zfit" aria-label="Ver mapa completo"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+      <div class="hint" id="hint">Arrastra para recorrer · toca un número</div>
+
+      <article class="sheet" id="sheet" aria-live="polite">
+        <div class="sheet-head">
+          <img id="s-icon" alt="">
+          <div><div class="eyebrow" id="s-eyebrow"></div><h2 id="s-title"></h2></div>
+          <button class="x" id="s-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="meta" id="s-meta"></div>
+          <div id="s-text"></div>
+        </div>
+        <div class="actions">
+          <button class="btn solid" id="s-audio"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Audioguía</span></button>
+          <button class="btn" id="s-done" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Visitada</span></button>
+          <div class="nav">
+            <button id="s-prev">← <span id="s-prevname"></span></button>
+            <button id="s-next"><span id="s-nextname"></span> →</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- RUTA -->
+    <section class="view scroll" id="v-ruta" aria-label="Ruta" hidden>
+      <div class="pad">
+        <p class="label">Recorrido</p>
+        <h2 class="big">Ruta<br>patrimonial</h2>
+        <div class="progress" id="progress"></div>
+        <div class="count"><span id="count"></span><button id="reset">Reiniciar</button></div>
+        <ol class="list" id="list"></ol>
+      </div>
+    </section>
+
+    <!-- INFO -->
+    <section class="view scroll" id="v-info" aria-label="Información" hidden>
+      <div class="pad">
+        <p class="label">Visita</p>
+        <h2 class="big">Informaciones<br>al visitante</h2>
+
+        <div class="card" style="--c:var(--servicios)">
+          <div class="item"><img src="img/info.png" alt=""><div><b>Módulo de informaciones</b><span>Maestranza San Eugenio EFE · Ruta Patrimonial · Oficinas administrativas (parada 2)</span></div></div>
+          <div class="item"><img src="img/banos.png" alt=""><div><b>Baños</b><span>Acceso preferencial adulto mayor y personas con discapacidad (parada 4)</span></div></div>
+          <div class="item"><img src="img/accesibilidad.png" alt=""><div><b>Accesibilidad</b><span>Consulta en el módulo de informaciones por recorridos accesibles.</span></div></div>
+          <div class="item"><img src="img/entrada.png" alt=""><div><b>Ingreso y salida</b><span>Avda. Centenario S/N, Estación Central, Santiago<br>Horario: 08:30 a 18:30 hrs</span></div></div>
+        </div>
+
+        <div class="card" style="--c:var(--acceso)">
+          <h3>Instala la app<br>en tu iPhone</h3>
+          <ol class="steps">
+            <li>Abre esta página en <b>Safari</b>.</li>
+            <li>Toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li>
+            <li>Elige <b>Agregar a pantalla de inicio</b> y confirma.</li>
+          </ol>
+          <span class="item"><span>En Android, abre el menú de Chrome y elige <b>Instalar app</b> o <b>Agregar a la pantalla principal</b>.</span></span>
+        </div>
+
+        <div class="card" style="--c:var(--talleres)">
+          <h3>NFC y código QR</h3>
+          <p style="margin:0 0 12px;font-size:15px">Cada placa del recorrido tiene un código QR y una etiqueta NFC. Acerca la parte superior de tu iPhone a la placa, o escanea el QR con la cámara, y se abre la ficha de esa parada.</p>
+        </div>
+
+        <div class="card" style="--c:var(--ink)">
+          <h3>El color clasifica</h3>
+          <div class="legend" id="legend"></div>
+        </div>
+
+        <div class="foot">
+          <div class="logo"><img src="img/efecultura.png" alt="EFE Cultura"></div>
+          <span>Prototipo · Propuesta Oscar Videla · Textos de ejemplo</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-v="mapa" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg>Mapa</button>
+    <button class="tab" role="tab" data-v="ruta" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Ruta</button>
+    <button class="tab" role="tab" data-v="info" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Info</button>
+  </nav>
+</div>
+
+<script>
+const CATS={
+  talleres:{label:"Talleres",color:"var(--talleres)"},
+  via:{label:"Vía e infraestructura",color:"var(--via)"},
+  servicios:{label:"Servicios",color:"var(--servicios)"},
+  acceso:{label:"Acceso y orientación",color:"var(--acceso)"},
+  memoria:{label:"Memoria",color:"var(--memoria)"}
+};
+const STOPS=[
+ {n:1,name:"Ingreso / Salida",cat:"acceso",icon:"entrada",x:2013,y:1175,meta:["08:30 – 18:30 hrs","Avda. Centenario S/N"],
+  text:["Punto de partida de la ruta patrimonial. Desde aquí, la señalética direccional te guía por el recinto: la franja de color de cada letrero indica el tipo de lugar al que lleva.","Amarillo marca los talleres, morado la vía y su infraestructura, celeste los servicios, verde el acceso y la orientación, y rojo la memoria."]},
+ {n:2,name:"Informaciones",cat:"servicios",icon:"info",x:2113,y:970,meta:["Usted está acá","Oficinas administrativas"],
+  text:["Módulo de informaciones de la Ruta Patrimonial. Aquí puedes pedir el mapa impreso, consultar por visitas mediadas y resolver dudas sobre accesibilidad.","Desde este punto se ven las naves del taller de coches, la siguiente parada."]},
+ {n:3,name:"Taller Coches",cat:"talleres",icon:"coches",x:2015,y:683,meta:["Nave de mantención","Acceso con guía"],
+  text:["Taller dedicado a la mantención de coches de pasajeros. Sus naves alargadas corren paralelas a las vías para que los coches entren completos a revisión de carrocería, interiores y frenos.","Observa los fosos bajo las vías: permitían trabajar desde abajo en los rodados y sistemas de frenado."]},
+ {n:4,name:"Baños",cat:"servicios",icon:"banos",x:1416,y:347,meta:["Acceso preferencial","Adulto mayor y discapacidad"],
+  text:["Servicios higiénicos de la ruta, con acceso preferencial para personas mayores y personas con discapacidad."]},
+ {n:5,name:"Materiales de Vía",cat:"via",icon:"materiales",x:936,y:343,meta:["Riel y durmiente","Cambio de vía"],
+  text:["Zona de acopio de rieles, durmientes y piezas de cambio de vía. Aquí se entiende cómo se construye una línea férrea: el riel, el durmiente que lo sostiene y la palanca que mueve las agujas de un cambio.","La forma del riel en “I” reparte el peso del tren sobre el durmiente y el balasto."]},
+ {n:6,name:"Taller Diesel",cat:"talleres",icon:"diesel",x:1629,y:714,meta:["Monumento Nacional","Casa de máquinas circular"],
+  text:["Ocupa una de las dos casas de máquinas circulares de la maestranza. Las locomotoras entran por la tornamesa central, una plataforma giratoria que orienta cada máquina hacia su vía de trabajo.","Es uno de los talleres del recinto declarados Monumento Nacional."]},
+ {n:7,name:"Taller Ruedas",cat:"talleres",icon:"ruedas",x:1266,y:805,meta:["Monumento Nacional","Entre ambas tornamesas"],
+  text:["Entre las dos casas de máquinas está el taller donde se revisan y tornean los juegos de ruedas del material rodante. Una rueda gastada se vuelve a perfilar en tornos de gran tamaño hasta recuperar su forma original.","El perfil cónico de la rueda es lo que mantiene al tren centrado sobre los rieles en las curvas."]},
+ {n:8,name:"Taller Eléctrico",cat:"talleres",icon:"electrico",x:916,y:728,meta:["Monumento Nacional","Casa de máquinas circular"],
+  text:["La segunda casa de máquinas circular, dedicada a locomotoras y equipos eléctricos. Desde la tornamesa se aprecia la disposición en abanico de las vías, una de las imágenes más reconocibles de la maestranza.","Es uno de los talleres del recinto declarados Monumento Nacional."]},
+ {n:9,name:"Memorial",cat:"memoria",icon:"memorial",x:520,y:574,meta:["Espacio de memoria","Fin del recorrido"],
+  text:["Espacio dedicado a la memoria de los trabajadores ferroviarios de San Eugenio y a la historia obrera del barrio que creció en torno a la maestranza.","Te invitamos a recorrerlo en silencio antes de volver al ingreso."]}
+];
+const W=2576,H=1449;
+const $=s=>document.querySelector(s);
+const store={get(){try{return JSON.parse(localStorage.getItem("mse-visit")||"[]")}catch(e){return[]}},set(v){try{localStorage.setItem("mse-visit",JSON.stringify(v))}catch(e){}}};
+let visited=new Set(store.get());
+let current=null, filter="todos";
+
+/* ---------- marcadores y filtros ---------- */
+const world=$("#world"), vp=$("#viewport");
+STOPS.forEach(s=>{
+  const b=document.createElement("button");
+  b.className="mk"; b.textContent=s.n; b.style.left=s.x+"px"; b.style.top=s.y+"px";
+  b.style.setProperty("--c",CATS[s.cat].color);
+  b.setAttribute("aria-label",`Parada ${s.n}: ${s.name}`);
+  b.addEventListener("click",()=>openStop(s.n));
+  s.el=b; world.appendChild(b);
+});
+const chips=$("#chips");
+[["todos","Todos","var(--ink)"],...Object.entries(CATS).map(([k,v])=>[k,v.label,v.color])].forEach(([k,l,c])=>{
+  const b=document.createElement("button"); b.className="chip"; b.style.setProperty("--c",c);
+  b.innerHTML=(k==="todos"?"":"<i></i>")+l; b.setAttribute("aria-pressed",k===filter);
+  b.addEventListener("click",()=>{filter=k;[...chips.children].forEach(x=>x.setAttribute("aria-pressed",x===b));paintMarkers()});
+  chips.appendChild(b);
+});
+function paintMarkers(){
+  world.parentElement.classList.toggle("filtering",filter!=="todos");
+  world.classList.toggle("filtering",filter!=="todos");
+  STOPS.forEach(s=>{s.el.classList.toggle("dim",filter!=="todos"&&s.cat!==filter);
+    s.el.classList.toggle("on",current===s.n); s.el.classList.toggle("done",visited.has(s.n))});
+}
+
+/* ---------- pan y zoom ---------- */
+let sc=1,tx=0,ty=0,padB=0;
+const coverS=()=>Math.max(vp.clientWidth/W,vp.clientHeight/H);
+const minS=()=>Math.max(vp.clientWidth/W,vp.clientHeight/H);
+function clamp(){
+  const vw=vp.clientWidth,vh=vp.clientHeight; sc=Math.min(2.4,Math.max(minS(),sc));
+  const w=W*sc,h=H*sc;
+  tx= w<=vw ? (vw-w)/2 : Math.min(0,Math.max(vw-w,tx));
+  const avail=vh-padB;
+  ty= h<=avail ? (avail-h)/2 : Math.min(0,Math.max(avail-h,ty));
+}
+function apply(anim){clamp();world.style.transition=anim?"transform .5s cubic-bezier(.2,.7,.2,1)":"none";world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`}
+function zoomAt(f,cx,cy,anim){const ns=Math.min(2.4,Math.max(minS(),sc*f));tx=cx-(cx-tx)*(ns/sc);ty=cy-(cy-ty)*(ns/sc);sc=ns;apply(anim)}
+function centerOn(x,y,anim){
+  const vw=vp.clientWidth,vh=vp.clientHeight; if(sc<coverS()*1.45) sc=coverS()*1.45;
+  tx=vw/2-x*sc; ty=(vh-padB)/2-y*sc; apply(anim);
+}
+function fit(){padB=0;sc=coverS()*1.45;tx=vp.clientWidth/2-1960*sc;ty=vp.clientHeight*.55-1000*sc;apply(false)}
+const pts=new Map(); let moved=0, prev=null, dragged=false;
+const rel=e=>{const r=vp.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
+vp.addEventListener("pointerdown",e=>{pts.set(e.pointerId,rel(e));moved=0;dragged=false;prev=null;vp.classList.add("drag");hideHint()});
+window.addEventListener("pointermove",e=>{
+  if(!pts.has(e.pointerId))return; pts.set(e.pointerId,rel(e));
+  const p=[...pts.values()];
+  const mid=p.length>1?{x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}:p[0];
+  const dist=p.length>1?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;
+  if(prev&&prev.n===p.length){
+    tx+=mid.x-prev.mid.x; ty+=mid.y-prev.mid.y; moved+=Math.abs(mid.x-prev.mid.x)+Math.abs(mid.y-prev.mid.y);
+    if(p.length>1&&prev.dist) {zoomAt(dist/prev.dist,mid.x,mid.y,false);moved+=10} else apply(false);
+    if(moved>8)dragged=true;
+  }
+  prev={n:p.length,mid,dist};
+});
+const end=e=>{pts.delete(e.pointerId);prev=null;if(!pts.size)vp.classList.remove("drag")};
+window.addEventListener("pointerup",end);window.addEventListener("pointercancel",end);
+vp.addEventListener("click",e=>{if(dragged){e.stopPropagation();e.preventDefault();dragged=false}},true);
+vp.addEventListener("wheel",e=>{e.preventDefault();const p=rel(e);zoomAt(Math.exp(-e.deltaY*.0018),p.x,p.y,false)},{passive:false});
+vp.addEventListener("dblclick",e=>{const p=rel(e);zoomAt(1.7,p.x,p.y,true)});
+$("#zin").onclick=()=>zoomAt(1.5,vp.clientWidth/2,(vp.clientHeight-padB)/2,true);
+$("#zout").onclick=()=>zoomAt(1/1.5,vp.clientWidth/2,(vp.clientHeight-padB)/2,true);
+$("#zfit").onclick=()=>{sc=coverS();apply(true)};
+window.addEventListener("resize",()=>apply(false));
+function hideHint(){$("#hint").style.opacity=0}
+
+/* ---------- ficha de parada ---------- */
+const sheet=$("#sheet");
+function openStop(n,fromHash){
+  const s=STOPS[n-1]; if(!s)return; current=n; stopAudio(); hideHint();
+  showView("mapa",true);
+  sheet.style.setProperty("--c",CATS[s.cat].color);
+  $("#s-icon").src=`img/${s.icon}.png`;
+  $("#s-eyebrow").textContent=`Parada ${s.n} de 9 · ${CATS[s.cat].label}`;
+  $("#s-title").textContent=s.name;
+  $("#s-meta").innerHTML=s.meta.map(m=>`<span>${m}</span>`).join("");
+  $("#s-text").innerHTML=`<span class="sample">Texto de ejemplo</span>`+s.text.map(t=>`<p>${t}</p>`).join("");
+  $("#s-done").setAttribute("aria-pressed",visited.has(n));
+  $("#s-done span").textContent=visited.has(n)?"Visitada":"Marcar visitada";
+  const pv=STOPS[n-2],nx=STOPS[n];
+  $("#s-prev").disabled=!pv; $("#s-prevname").textContent=pv?pv.name:"Anterior";
+  $("#s-next").disabled=!nx; $("#s-nextname").textContent=nx?nx.name:"Fin";
+  $(".sheet-body").scrollTop=0;
+  sheet.classList.add("open");
+  requestAnimationFrame(()=>{padB=window.innerWidth>=760?0:sheet.offsetHeight;
+    const vw=vp.clientWidth; centerOn(s.x+(window.innerWidth>=760?210/sc:0),s.y,!fromHash)});
+  paintMarkers(); setHash("p"+n);
+}
+function closeStop(){current=null;stopAudio();sheet.classList.remove("open");padB=0;apply(true);paintMarkers();setHash("mapa")}
+$("#s-close").onclick=closeStop;
+$("#s-prev").onclick=()=>current>1&&openStop(current-1);
+$("#s-next").onclick=()=>current<9&&openStop(current+1);
+$("#s-done").onclick=()=>{
+  visited.has(current)?visited.delete(current):visited.add(current); store.set([...visited]);
+  const on=visited.has(current); $("#s-done").setAttribute("aria-pressed",on);
+  $("#s-done span").textContent=on?"Visitada":"Marcar visitada"; paintMarkers(); renderRoute();
+};
+
+/* audioguía con voz del sistema */
+const synth=window.speechSynthesis; let speaking=false;
+const droid=window.AndroidTTS;
+if(!synth&&!droid) $("#s-audio").hidden=true;
+function stopAudio(){if(droid){droid.stop()}else if(synth){synth.cancel()}speaking=false;$("#s-audio span").textContent="Audioguía"}
+window.ttsDone=stopAudio;
+$("#s-audio").onclick=()=>{
+  if(speaking){stopAudio();return}
+  if(droid){const s=STOPS[current-1];droid.speak(`Parada ${s.n}. ${s.name}. ${s.text.join(" ")}`);speaking=true;$("#s-audio span").textContent="Detener";return}
+  const s=STOPS[current-1]; const u=new SpeechSynthesisUtterance(`Parada ${s.n}. ${s.name}. ${s.text.join(" ")}`);
+  u.lang="es-CL"; const v=synth.getVoices().find(v=>/^es(-|_)CL/i.test(v.lang))||synth.getVoices().find(v=>/^es/i.test(v.lang)); if(v)u.voice=v;
+  u.rate=.98; u.onend=stopAudio; synth.cancel(); synth.speak(u); speaking=true; $("#s-audio span").textContent="Detener";
+};
+
+/* ---------- ruta ---------- */
+const tick='<span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
+function renderRoute(){
+  $("#progress").innerHTML=STOPS.map(s=>`<i class="${visited.has(s.n)?"done":""}" style="--c:${CATS[s.cat].color}"></i>`).join("");
+  $("#count").textContent=`${visited.size} de 9 visitadas`;
+  $("#list").innerHTML=STOPS.map(s=>`<li><button class="row${["acceso","memoria"].includes(s.cat)?" inv":""}" data-n="${s.n}" style="--c:${CATS[s.cat].color}">
+    <span class="bar"></span><img src="img/${s.icon}.png" alt=""><span><b>${s.name}</b><small>${CATS[s.cat].label}</small></span>
+    <span class="num">${visited.has(s.n)?tick:""}${s.n}</span></button></li>`).join("");
+  $("#list").querySelectorAll(".row").forEach(r=>r.onclick=()=>openStop(+r.dataset.n));
+}
+$("#reset").onclick=()=>{visited.clear();store.set([]);renderRoute();paintMarkers()};
+$("#legend").innerHTML=Object.values(CATS).map(c=>`<div><i style="--c:${c.color}"></i>${c.label}</div>`).join("");
+
+/* ---------- vistas y enlaces (#p1…#p9 para QR / NFC) ---------- */
+function showView(v,keep){
+  ["mapa","ruta","info"].forEach(k=>$("#v-"+k).hidden=k!==v);
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v));
+  if(v==="mapa")requestAnimationFrame(()=>apply(false));
+  if(!keep)setHash(v);
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(t.dataset.v!=="mapa"){stopAudio()}showView(t.dataset.v);if(t.dataset.v==="mapa"&&current)setHash("p"+current)});
+let lastHash="";
+function setHash(h){lastHash=h;try{history.replaceState(null,"","#"+h)}catch(e){}}
+function route(){
+  const h=(location.hash||"").slice(1); if(h===lastHash)return; lastHash=h;
+  const m=h.match(/^p([1-9])$/);
+  if(m) openStop(+m[1],true); else if(h==="ruta"||h==="info") showView(h,true);
+}
+window.addEventListener("hashchange",route);
+
+renderRoute(); paintMarkers();
+const img=$("#world img");
+function boot(){fit();route()}
+img.complete?boot():img.addEventListener("load",boot);
+setTimeout(hideHint,6000);
+</script>
+
+</body></html>
